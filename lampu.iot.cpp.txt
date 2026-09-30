@@ -1,0 +1,174 @@
+const int trigPin1 = 26;
+const int echoPin1 = 25;
+
+const int trigPin2 = 18;
+const int echoPin2 = 19;
+
+const int relayPin = 27;
+
+// Timer
+unsigned long waktuMulaiAdaOrang = 0;
+unsigned long waktuMulaiTidakAda = 0;
+
+bool timerAdaOrang = false;
+bool timerTidakAda = false;
+
+
+// ===============================
+// FUNGSI BACA SENSOR
+// ===============================
+long bacaJarak(int trigPin, int echoPin) {
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 30000);
+
+  // Jika sensor tidak mendapat pantulan
+  if (duration == 0) {
+    return 999;
+  }
+
+  return duration * 0.034 / 2;
+}
+
+
+// ===============================
+// SETUP
+// ===============================
+void setup() {
+
+  Serial.begin(115200);
+
+  pinMode(trigPin1, OUTPUT);
+  pinMode(echoPin1, INPUT);
+
+  pinMode(trigPin2, OUTPUT);
+  pinMode(echoPin2, INPUT);
+
+  pinMode(relayPin, OUTPUT);
+
+  // AWAL = HIJAU
+  digitalWrite(relayPin, LOW);
+}
+
+
+// ===============================
+// LOOP
+// ===============================
+void loop() {
+
+  long jarak1 = bacaJarak(trigPin1, echoPin1);
+
+  delay(50);
+
+  long jarak2 = bacaJarak(trigPin2, echoPin2);
+
+
+  // Jika salah satu sensor mendeteksi objek
+  bool adaOrang = (jarak1 < 65 || jarak2 < 65);
+
+
+  // =================================================
+  // ADA ORANG ? MERAH
+  // =================================================
+
+  if (adaOrang) {
+
+    // Batalkan timer tidak ada orang
+    timerTidakAda = false;
+
+    // Jika lampu masih HIJAU
+    if (digitalRead(relayPin) == LOW) {
+
+      if (!timerAdaOrang) {
+
+        timerAdaOrang = true;
+        waktuMulaiAdaOrang = millis();
+
+        Serial.println("ADA ORANG - Timer 5 detik dimulai");
+
+      }
+
+      // Sudah terdeteksi selama 5 detik
+      if (millis() - waktuMulaiAdaOrang >= 5000) {
+
+        digitalWrite(relayPin, HIGH);
+
+        timerAdaOrang = false;
+
+        Serial.println("LAMPu MERAH ON");
+      }
+    }
+  }
+
+
+  // =================================================
+  // TIDAK ADA ORANG ? HIJAU
+  // =================================================
+
+  else {
+
+    // Batalkan timer ada orang
+    timerAdaOrang = false;
+
+    // Jika lampu masih MERAH
+    if (digitalRead(relayPin) == HIGH) {
+
+      if (!timerTidakAda) {
+
+        timerTidakAda = true;
+        waktuMulaiTidakAda = millis();
+
+        Serial.println("TIDAK ADA ORANG - Timer 10 detik dimulai");
+
+      }
+
+      // Sudah tidak ada orang selama 10 detik
+      if (millis() - waktuMulaiTidakAda >= 10000) {
+
+        digitalWrite(relayPin, LOW);
+
+        timerTidakAda = false;
+
+        Serial.println("LAMPU HIJAU ON");
+      }
+    }
+  }
+
+
+  // =================================================
+  // SERIAL MONITOR
+  // =================================================
+
+  Serial.print("Sensor 1: ");
+  Serial.print(jarak1);
+  Serial.print(" cm | ");
+
+  Serial.print("Sensor 2: ");
+  Serial.print(jarak2);
+  Serial.print(" cm | ");
+
+  Serial.print("Status: ");
+
+  if (adaOrang) {
+    Serial.print("ADA ORANG");
+  } else {
+    Serial.print("TIDAK ADA ORANG");
+  }
+
+  Serial.print(" | Relay: ");
+
+  if (digitalRead(relayPin) == HIGH) {
+    Serial.println("MERAH");
+  } else {
+    Serial.println("HIJAU");
+  }
+
+  delay(500);
+}
